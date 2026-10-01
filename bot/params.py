@@ -137,6 +137,9 @@ OPEN_VALUE = {
 }
 HOSP_FWD_GAIN = 3             # 본진보다 전선에 이만큼 가까우면 전방 병원
 OPEN_ESCORT_FIRST_W_TURN = 2  # 오프닝 전투병 생산 시작 턴
+OPEN_LATE_SLACK = 2           # 늦은 쟁탈: t_E보다 이만큼 늦게까지 (호위 동행)
+OPEN_LATE_MULT = 0.6          # 늦은 쟁탈 가치 배수
+OPEN_CAP_PER_TURN = 4         # 같은 턴 점령 건수 상한 (점령 자금)
 SCORE_EST_SIDE = 1.5
 SCORE_EST_CENTRAL = 3
 SCORE_UB_SIDE = 2
