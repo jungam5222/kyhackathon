@@ -3,7 +3,7 @@ import sys
 import time
 
 import params as P
-from mapinfo import MapInfo, cx, cy
+from mapinfo import MapInfo
 from gamestate import TurnData, Memory
 from threat import Economy, Threat
 from territory import Territory
@@ -11,7 +11,7 @@ from modes import Modes
 from opening import OpeningPlan
 from flags import FlagManager
 from squads import SquadManager
-from slots import SlotMemory, Slot, build_base_slots, P0d, P1a, P1c
+from slots import SlotMemory, Slot, build_base_slots, P0d, P1a, P1c, P2
 from assign import Ledger, Assigner, Rec
 import production
 import tele as tele_mod
@@ -58,6 +58,7 @@ class Bot:
         self.ledger = Ledger()
         self.smem = SlotMemory()
         self.turn = 0
+        self.core_need = 0
         self.m = {'rev': 0, 'rev_bad': 0, 'mv': 0, 'swap': 0, 'idle': 0, 'tele': 0,
                   'rej': 0, 'max_ms': 0.0, 'kills': 0}
         if LOG_INIT:
@@ -140,6 +141,7 @@ class Bot:
         ctx.bld_value = self._bld_value
         ctx.flag_value = lambda b: self._flag_value(b, td)
         ctx.w_total = sum(td.W[0])
+        ctx.core_need = self.core_need
         # S4 모드
         ctx.mode = self.modes.update(td.turn, eco, td, mem)
         ctx.finale = self.modes.finale
@@ -178,6 +180,13 @@ class Bot:
             if bad == 0 or time.perf_counter() > hard:
                 break
         self.last_asg = asg
+        # 다음 턴 분대 여유 계산용: P0~P2 point 슬롯의 칸별 누적 수요 합
+        # (area 경주 수비는 서로 겹쳐 합이 부풀므로 빼고, 분대 슬롯도 뺀다)
+        cell_need = {}
+        for s in asg.slots:
+            if s.tier <= P2 and not s.failed and s.r == 0 and s.key[0] != 'squad':
+                cell_need[s.cell] = max(cell_need.get(s.cell, 0), s.need)
+        self.core_need = sum(cell_need.values())
         flag_moves = self.flagm.finalize(ctx, asg)
         # S11 TELE
         tl = None

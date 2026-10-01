@@ -3,7 +3,7 @@
 팀 인덱스는 0 = 우리, 1 = 상대. 건물 소유는 -1 = 중립, 0 = 우리, 1 = 상대.
 """
 import params as P
-from mapinfo import NC, INF, cell, cheb
+from mapinfo import NC, cell
 
 KIND_IDX = {'F': 0, 'W': 1, 'S': 2}
 

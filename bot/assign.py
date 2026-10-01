@@ -137,6 +137,7 @@ class Assigner:
         self.slots = slots
         self.locks = locks
         self.sites = list(ctx.eco.sites[0])
+        self.stations = list(ctx.eco.stations[0]) if ctx.eco.tele_ok[0] else []
         self.prod_left = prod_base
         self.prod_extra = max(0, prod_max - prod_base)
         self.prod_used = {}
@@ -659,7 +660,8 @@ class Assigner:
             if f.born == self.turn:
                 for c in mp.ball(f.c, P.HUNT_NEW_FLAG_R):
                     new_flag_near.add(c)
-        for g in self.groups:
+        tele_q = {}
+        for g in sorted(self.groups, key=lambda g: (g.slot.tier if g.slot else 99, g.seq)):
             if g.n <= 0:
                 continue
             if g.slot is None:
@@ -667,7 +669,11 @@ class Assigner:
                 continue
             s = g.slot
             if g.step is None:
-                g.step = self._next_step(g, s.cell, s.r)
+                wp = self._tele_waypoint(g, s, tele_q)
+                if wp is not None:
+                    g.step = wp
+                else:
+                    g.step = self._next_step(g, s.cell, s.r)
                 self.endc[g.step] += g.n
         # 역행 금지 (INV-03)
         for g in self.groups:
@@ -728,6 +734,44 @@ class Assigner:
                     g.tag = TAG_SAFE
             if g.status == 'free':
                 self.stats['idle'] += g.n
+
+    def _tele_waypoint(self, g, s, tele_q):
+        """TELE 경유 경로 (12.3·15장): 걸어가기보다 역 s1 → TELE → 역 s2 → 목표가
+        인원당 P-TELE_MIN_SAVE 턴 이상 빠르면 s1 쪽으로 한 걸음(이미 s1이면 제자리 대기).
+        대기열: s1에 모인 인원 ÷ 5(올림) − 1 턴을 기다림으로 더한다."""
+        st = self.stations
+        if len(st) < P.TELE_MIN_STATIONS or s.tier <= P0d:
+            return None
+        walk = self.cost(g.c, s)
+        if walk < P.TELE_MIN_SAVE + 2:
+            return None
+        dist = self.dist
+        best = None
+        for s1 in st:
+            d1 = dist[g.c][s1]
+            if d1 >= walk:
+                continue
+            q = tele_q.get(s1, 0) + g.n
+            wait = max(0, -(-q // P.TELE_MAX) - 1)
+            for s2 in st:
+                if s2 == s1:
+                    continue
+                d2 = dist[s2][s.cell]
+                d2 = d2 - s.r if d2 > s.r else 0
+                tot = d1 + 1 + wait + d2
+                if walk - tot >= P.TELE_MIN_SAVE and (best is None or tot < best[0]):
+                    best = (tot, s1)
+        if best is None:
+            return None
+        s1 = best[1]
+        tele_q[s1] = tele_q.get(s1, 0) + g.n
+        if g.c == s1:
+            return g.c
+        opts = self.mp.toward(g.c, s1)
+        if not opts:
+            return None
+        opts.sort(key=lambda v: (self.E1[v], v))
+        return opts[0]
 
     def _set_step(self, g, v):
         if g.step is not None:

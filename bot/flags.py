@@ -420,7 +420,6 @@ class FlagManager:
         return E + margin_cell
 
     def plan_moves(self, ctx, squad_goals):
-        mp, td = self.mp, ctx.td
         for f in self.flags:
             f.opt = 0
             f.tag = None
@@ -501,7 +500,6 @@ class FlagManager:
 
     def finalize(self, ctx, asg):
         """최종 깃발 이동을 정하고 (출발, 도착, 꼬리표) 목록을 돌려준다."""
-        mp, th = self.mp, ctx.threat
         res = []
         endc = asg.endc if asg is not None else None
         for f in self.flags:

@@ -118,6 +118,7 @@ SQUAD_WAIT_MAX = 8
 SQUAD_MOVE_SLACK = 6          # MOVE 상한 = 대기 칸까지 거리 + 이 값
 SQUAD_MAX = 3                 # 동시 분대 상한 (실제로는 여유 병력이 제한한다, 17.1)
 SQUAD_MAX_FIN = 4
+PH3_TURN = 45                 # PH3 운영 단계 시작 (4.1)
 SQUAD_RESERVE = 5             # 분대 병력 산정 시 P0~P2 몫으로 남기는 여유
 SQUAD_FWD_HOSP_R = 6
 SQUAD_V_FWD_HOSP = 10

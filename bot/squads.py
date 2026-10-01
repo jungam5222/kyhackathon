@@ -64,7 +64,7 @@ class SquadManager:
             elif b.kind == 'STATION' and o == 1 and len(eco.stations[1]) == 2:
                 v = P.SQUAD_V_STATION
             if v > 0:
-                out.append((v, b))
+                out.append((v, b, b.kind in ('ENG', 'HALL')))
         return out
 
     def _wait_cell(self, ctx, b, k):
@@ -160,18 +160,19 @@ class SquadManager:
         return goals, slots, locks
 
     def _start(self, ctx, flagm):
-        mp, th, td = self.mp, ctx.threat, ctx.td
+        mp, th = self.mp, ctx.threat
         limit = P.SQUAD_MAX_FIN if ctx.finale else P.SQUAD_MAX
         if len(self.squads) >= limit:
             return
         busy = {sq.bi for sq in self.squads}
         used_k = sum(sq.k for sq in self.squads)
-        surplus = ctx.w_total - len(ctx.terr.F) - P.SQUAD_RESERVE - used_k
-        if ctx.finale:
-            surplus = ctx.w_total - used_k - P.SQUAD_RESERVE
+        # 여유 = P0~P2를 채운 뒤 남는 병력 (직전 턴 수요 기준, 17.1)
+        surplus = ctx.w_total - ctx.core_need - P.SQUAD_RESERVE - used_k
+        # PH1·PH2(라인 완성 전, 45턴 전)에는 경제 직결 분대(공학관·학생회관)만 낸다 (4.1)
+        econ_only = not ctx.finale and not ctx.terr.line_done and ctx.turn < P.PH3_TURN
         cands = []
-        for v, b in self._targets(ctx):
-            if b.i in busy:
+        for v, b, econ in self._targets(ctx):
+            if b.i in busy or (econ_only and not econ):
                 continue
             k = max(th.E1[b.c], th.Ed(b.c, 2)) + 1
             if v < P.SQUAD_MIN_VALUE or v < k or k > surplus:
