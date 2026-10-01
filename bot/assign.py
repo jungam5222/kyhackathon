@@ -156,7 +156,7 @@ class Assigner:
         self.by_cell = {}
         for g in groups:
             self.by_cell.setdefault(g.c, []).append(g)
-        self.stats = {'rev': 0, 'rev_bad': 0, 'swap': 0, 'idle': 0, 'orph': 0, 'cancel_prog': 0}
+        self.stats = {'rev': 0, 'rev_bad': 0, 'swap': 0, 'idle': 0, 'orph': 0, 'unsafe_wait': 0}
         self.deadline_t = ctx.t0 + P.TIME_HARD_MS / 1000.0
 
     # ------------------------------------------------------------------ 기본 연산
@@ -744,6 +744,7 @@ class Assigner:
                         self._set_step(g, path[0])
                     else:
                         self._set_step(g, g.c)
+                        self.stats['unsafe_wait'] += g.n
                     changed = True
             if not changed:
                 break

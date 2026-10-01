@@ -12,6 +12,7 @@ from opening import OpeningPlan
 from flags import FlagManager
 from squads import SquadManager
 from opponent import OppModel
+from diag import Metrics
 from slots import SlotMemory, Slot, build_base_slots, P0d, P1a, P1c, P2
 from assign import Ledger, Assigner, Rec
 import production
@@ -61,8 +62,7 @@ class Bot:
         self.smem = SlotMemory()
         self.turn = 0
         self.core_need = 0
-        self.m = {'rev': 0, 'rev_bad': 0, 'mv': 0, 'swap': 0, 'idle': 0, 'tele': 0,
-                  'rej': 0, 'max_ms': 0.0, 'kills': 0}
+        self.metrics = Metrics()
         if LOG_INIT:
             self.log("INITMAP " + " ".join(raw_init))
         lanes = []
@@ -184,6 +184,7 @@ class Bot:
             if bad == 0 or time.perf_counter() > hard:
                 break
         self.last_asg = asg
+        self.last_ctx = ctx
         # 다음 턴 분대 여유 계산용: P0~P2 point 슬롯의 칸별 누적 수요 합
         # (area 경주 수비는 서로 겹쳐 합이 부풀므로 빼고, 분대 슬롯도 뺀다)
         cell_need = {}
@@ -227,6 +228,9 @@ class Bot:
         mem.w_spawned_last = sum(out.spawned['W'].values())
         # 로그 (21.1)
         ms = (time.perf_counter() - t0) * 1000.0
+        self.metrics.update(ctx, asg, out, tl, self.flagm.flags, (C, dn), ms)
+        if ctx.turn == P.METRIC_F45_TURN:
+            self.metrics.snap_f45(self.flagm.lost_total, mem.eflags_killed_total)
         self._turn_log(ctx, asg, out, tl, ms, pp, bad)
         return cmds
 
@@ -241,15 +245,6 @@ class Bot:
         u1 = sum(1 for s in asg.slots if s.failed and P1a <= s.tier <= P1c)
         mv = sum(n for n in asg.moves().values())
         manned = sum(1 for c in terr.F if asg.endc[c] > 0)
-        self.m['rev'] += st['rev']
-        self.m['rev_bad'] += st['rev_bad']
-        self.m['mv'] += mv
-        self.m['swap'] += st['swap']
-        self.m['idle'] += st['idle']
-        self.m['rej'] += out.rejected
-        self.m['max_ms'] = max(self.m['max_ms'], ms)
-        if tl is not None:
-            self.m['tele'] += 1
         line = (f"T{ctx.turn} M{ctx.mode} dP{mm.dP:+.1f} A{mm.A:+d} R{td.R[0]} "
                 f"W{sum(td.W[0])}/{sum(td.W[1])} F{sum(td.F[0])}/{sum(td.F[1])} "
                 f"S{mm.our_score:.0f}/{mm.enemy_score:.0f} Fr{len(terr.F)}/{manned} "
@@ -259,9 +254,7 @@ class Bot:
                 f"{'h' if pp.hold else ''} tl{1 if tl else 0} fb{bad} rj{out.rejected} "
                 f"sq{len(self.squadm.squads)} op{self.opp.tag()} ms{ms:.1f}")
         self.log(line[:P.LOG_LINE_MAX])
-        if ctx.last:
-            m = self.m
-            self.log(f"END rv{m['rev']}/{m['rev_bad']} mv{m['mv']} sw{m['swap']} "
-                     f"id{m['idle']} tl{m['tele']} rj{m['rej']} flost{self.flagm.lost_total} "
-                     f"ekill{self.mem.eflags_killed_total} sqd{self.squadm.done}/"
-                     f"{self.squadm.aborted} maxms{m['max_ms']:.1f}")
+        if ctx.last or ctx.turn % P.METRIC_EVERY == 0:
+            self.log(self.metrics.line(ctx.turn, self.flagm.lost_total,
+                                       self.mem.eflags_killed_total,
+                                       (self.squadm.done, self.squadm.aborted)))

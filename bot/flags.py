@@ -280,8 +280,8 @@ class FlagManager:
         for f in flags:
             if f.task in ('F1', 'F2', 'F6'):
                 continue
-            cands = self._candidates(ctx, f, taken)
             if f.task in ('F3', 'F4', 'F5', 'F7') and f.bi is not None:
+                cands = self._candidates(ctx, f, taken)
                 cur_rank = RANK[f.task]
                 b = mp.blds[f.bi]
                 cur_sc = ctx.flag_value(b) / (mp.dist[f.c][b.c] + self._cap_turns(ctx, b))
@@ -296,12 +296,22 @@ class FlagManager:
                     continue
                 task = {v: k for k, v in RANK.items()}[better[0]]
                 self._set(f, task, better[1], taken)
+        # 일 없는 깃발: 모든 (깃발, 건물) 쌍을 순위 → 점수 순으로 탐욕 배정 (13.2)
+        idle = [f for f in flags if f.task not in ('F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7')]
+        pairs = []
+        for f in idle:
+            for rk, nsc, bi in self._candidates(ctx, f, taken):
+                pairs.append((rk, nsc, f.id, bi, f))
+        pairs.sort(key=lambda t: t[:4])
+        done = set()
+        names = {v: k for k, v in RANK.items()}
+        for rk, nsc, fid, bi, f in pairs:
+            if fid in done or bi in taken:
                 continue
-            if cands:
-                rk, nsc, bi = cands[0]
-                task = {v: k for k, v in RANK.items()}[rk]
-                self._set(f, task, bi, taken)
-            elif f.task != 'F8':
+            self._set(f, names[rk], bi, taken)
+            done.add(fid)
+        for f in idle:
+            if f.id not in done and f.task != 'F8':
                 self._set(f, 'F8', None, taken, goal=None)
         # 주차 칸 (13.6)
         used = {f.park_for for f in flags if f.task == 'F8' and f.park_for is not None

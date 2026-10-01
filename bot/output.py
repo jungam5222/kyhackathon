@@ -33,7 +33,7 @@ class Output:
                 continue
             agg[(site, kind)] = agg.get((site, kind), 0) + n
         order = sorted(agg, key=lambda k: (0 if k[0] == mp.base_us else 1, k[0],
-                                           KIND_ORDER[k[1]]))
+                                           KIND_ORDER.get(k[1], 9), str(k[1])))
         for site, kind in order:
             n = agg[(site, kind)]
             if kind not in KI or n < 1:
@@ -72,10 +72,14 @@ class Output:
             else:
                 self.rejected += 1
         # MOVE
-        keys = sorted(moves, key=lambda k: (k[0], KIND_ORDER[k[1]], DIR_RANK[k[2]]))
+        keys = sorted(moves, key=lambda k: (k[0], KIND_ORDER.get(k[1], 9), DIR_RANK.get(k[2], 9),
+                                            str(k[1]), str(k[2])))
         for c, kind, d in keys:
             n = moves[(c, kind, d)]
             if n < 1:
+                continue
+            if kind not in KI or d not in DIR_RANK:
+                self.rejected += 1
                 continue
             dst = mp.step(c, d)
             if dst is None:
