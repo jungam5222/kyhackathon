@@ -8,7 +8,7 @@ from mapinfo import INF
 TIER_NAMES = ('P0a', 'P0b', 'P0c', 'P0d', 'P1a', 'P1b', 'P1c', 'P2', 'P3', 'P4', 'P5', 'P6')
 (P0a, P0b, P0c, P0d, P1a, P1b, P1c, P2, P3, P4, P5, P6) = range(12)
 TEMP_KINDS = ('hunt', 'guard', 'escort', 'gather', 'press', 'trade', 'squad', 'oesc', 'reent')
-STRUCT_KINDS = ('screen', 'screen2', 'support')
+STRUCT_KINDS = ('screen', 'screenu', 'screen2', 'support')
 
 
 class Slot:
@@ -216,9 +216,9 @@ def screen_slots(ctx, out):
         sm.intercept[c] = on
         need = P.INTERCEPT_NEED if on else P.SCREEN
         if fr <= P.SCREEN_DEADLINE_R:
-            out.append(Slot(('screen', c), c, need, P1c, deadline=max(1, fr - 1), value=val))
-        else:
-            out.append(Slot(('screen', c), c, need, P2, value=val))
+            # 마감 안에 닿는 병력이 없어도 칸이 비지 않도록 마감 없는 P2 몫을 함께 둔다
+            out.append(Slot(('screenu', c), c, need, P1c, deadline=max(1, fr - 1), value=val))
+        out.append(Slot(('screen', c), c, need, P2, value=val))
 
 
 # ---------------------------------------------------------------------- 압력 (11.7)

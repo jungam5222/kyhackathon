@@ -108,7 +108,8 @@ class SquadManager:
                     sq.unsafe = 0
                 if f.c == sq.wait:
                     sq.state = WAIT
-                    sq.waited += 1
+                if sq.state == WAIT:
+                    sq.waited += 1      # 깃발이 대기 칸에서 밀려나도 센다
                 late = sq.state == MOVE and ctx.turn > sq.move_limit
                 if sq.waited > P.SQUAD_WAIT_MAX or sq.unsafe >= P.SQUAD_UNSAFE_TURNS or late:
                     f.squad = None

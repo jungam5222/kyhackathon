@@ -419,9 +419,14 @@ class Assigner:
                 if not (s.tier == P0a and g.slot.tier != P0a):
                     continue
             else:
-                if g.slot is None or not can_preempt(s.tier, g.slot.tier):
+                inside = False
+                if g.slot is not None and g.slot.r > 0 and c <= 1:
+                    # area 예약은 반경 밖으로 못 나가게 할 뿐이다: 반경 안에서 옮기는 것은 허용
+                    end = self.quick_step(g.c, s)
+                    inside = end is not None and self.dist[end][g.slot.cell] <= g.slot.r
+                if not inside and (g.slot is None or not can_preempt(s.tier, g.slot.tier)):
                     continue
-                extra = P.SWITCH_COST
+                extra = 0 if inside else P.SWITCH_COST
                 if s.tier == P0d and g.slot.key[0] in ('screen', 'screen2'):
                     keep = 1 if not self._last_one_ok(g.c, s) else 0
                     k = min(k, max(0, self.pt[g.c] - keep))
@@ -542,6 +547,17 @@ class Assigner:
                 site = min(self.sites, key=lambda x: (self.cost(x, s), x))
                 k = min(dfc, self.prod_left)
                 self.take_prod(site, k, s, False)
+        # 남은 자유 인원은 가장 가까운 지원 칸으로 (INV-07 놀림 금지)
+        for g in list(self.groups):
+            if g.n > 0 and g.slot is None and g.status == 'free' and not g.prod:
+                s = min(sups, key=lambda s: (self.cost(g.c, s), -s.value, s.cell))
+                s.need += g.n
+                self.take(g, g.n, s, 'asg')
+        if self.prod_left > 0:
+            s = sups[0]
+            site = min(self.sites, key=lambda x: (self.cost(x, s), x))
+            s.need += self.prod_left
+            self.take_prod(site, self.prod_left, s, False)
 
     # ------------------------------------------------------------------ ⑥ 개선 패스
     def _improve(self):

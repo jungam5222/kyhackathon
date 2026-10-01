@@ -100,8 +100,10 @@ class Territory:
         T, F, S = self.region(self.L, self.excl, seeds, ess_cells)
         self._set(T, F, S)
         Wu = td.W[0]
-        manned = sum(1 for c in F if Wu[c] > 0)
-        self.coverage = manned / len(F) if F else 1.0
+        # 점거된 경계 칸은 임시 2선이 맡으므로 배치율 분모에서 뺀다 (11.5)
+        live = [c for c in F if c not in self.occupied]
+        manned = sum(1 for c in live if Wu[c] > 0)
+        self.coverage = manned / len(live) if live else 1.0
         if not self.line_done and self.coverage >= P.LINE_DONE:
             self.line_done = True
         self._occupation(td)
