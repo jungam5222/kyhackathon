@@ -142,6 +142,9 @@ class Assigner:
         self.prod_extra = max(0, prod_max - prod_base)
         self.prod_used = {}
         self.pt = [0] * NC
+        # 칸별 point 인원을 도착 턴(이동 비용)별로도 센다: 마감이 있는 슬롯은
+        # 그 마감 안에 도착하는 인원만 센다 (먼 칸에서 오는 인원으로 채워진 척 막기)
+        self.pt_eta = {}
         self.endc = [0] * NC
         self.pslots = {}
         for s in slots:
@@ -177,10 +180,23 @@ class Assigner:
             tot += e[c]
         return tot
 
+    def pt_in_time(self, cell, deadline):
+        if deadline >= INF:
+            return self.pt[cell]
+        d = self.pt_eta.get(cell)
+        if not d:
+            return 0
+        return sum(n for eta, n in d.items() if eta <= deadline)
+
     def deficit(self, s):
         if s.r == 0:
-            return self.cum(s) - self.pt[s.cell]
+            return self.cum(s) - self.pt_in_time(s.cell, s.deadline)
         return s.need - self.area_count(s)
+
+    def _pt_add(self, cell, eta, n):
+        self.pt[cell] += n
+        d = self.pt_eta.setdefault(cell, {})
+        d[eta] = d.get(eta, 0) + n
 
     def quick_step(self, c, s):
         """비용 0~1이면 이번 이동의 도착 칸을 바로 정한다."""
@@ -200,7 +216,7 @@ class Assigner:
     def _unhook(self, g, k):
         """g에서 k명을 기존 슬롯에서 떼어 낸다 (집계 갱신)."""
         if g.slot is not None and g.slot.r == 0 and g.status != 'orphan':
-            self.pt[g.slot.cell] -= k
+            self._pt_add(g.slot.cell, self.dist[g.c][g.slot.cell], -k)
         if g.step is not None:
             self.endc[g.step] -= k
 
@@ -209,7 +225,7 @@ class Assigner:
         g.status = status
         g.tier = s.tier
         if s.r == 0:
-            self.pt[s.cell] += g.n
+            self._pt_add(s.cell, self.dist[g.c][s.cell], g.n)
         st = self.quick_step(g.c, s)
         g.step = st
         if st is not None:
@@ -263,7 +279,19 @@ class Assigner:
             self._improve()
         self._steps()
         self._post()
+        self.endc_ok = self._check_endc()
         return self
+
+    def _check_endc(self):
+        """endc(칸별 이동 후 인원)가 그룹의 실제 도착 칸 합과 같은지 확인한다."""
+        real = [0] * NC
+        for g in self.groups:
+            if g.n > 0:
+                real[g.step if g.step is not None else g.c] += g.n
+        if real != self.endc:
+            self.endc = real
+            return False
+        return True
 
     def _classify(self):
         turn = self.turn
@@ -302,7 +330,7 @@ class Assigner:
                 k -= m
         for s in self.slots:
             if s.key[0] == 'guard' and s.r == 0:
-                k = s.need - self.pt[s.cell]
+                k = s.need - self.pt_in_time(s.cell, 0)
                 for g in list(self.by_cell.get(s.cell, ())):
                     if k <= 0:
                         break
@@ -325,7 +353,7 @@ class Assigner:
             run_max = 0
             for s in lst:
                 run_max = max(run_max, s.need)
-                want = run_max - self.pt[cell]
+                want = run_max - self.pt_in_time(cell, 0)
                 while want > 0 and stand:
                     g = stand[0]
                     if g.ban is not None and g.ban[0] == s.key:
@@ -430,7 +458,7 @@ class Assigner:
                 extra = 0 if inside else P.SWITCH_COST
                 if s.tier == P0d and g.slot.key[0] in ('screen', 'screen2'):
                     keep = 1 if not self._last_one_ok(g.c, s) else 0
-                    k = min(k, max(0, self.pt[g.c] - keep))
+                    k = min(k, max(0, self.pt_in_time(g.c, 0) - keep))
                     if k <= 0:
                         continue
             out.append((c + extra, 0 if c == 0 else 1, phi[g.c], g.c, g.seq, k, g))
@@ -665,7 +693,9 @@ class Assigner:
             if g.n <= 0:
                 continue
             if g.slot is None:
-                g.step = g.c if g.step is None else g.step
+                if g.step is None:
+                    g.step = g.c
+                    self.endc[g.c] += g.n
                 continue
             s = g.slot
             if g.step is None:
