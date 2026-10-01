@@ -257,4 +257,5 @@ class Bot:
         if ctx.last or ctx.turn % P.METRIC_EVERY == 0:
             self.log(self.metrics.line(ctx.turn, self.flagm.lost_total,
                                        self.mem.eflags_killed_total,
-                                       (self.squadm.done, self.squadm.aborted)))
+                                       (self.squadm.done, self.squadm.aborted),
+                                       self.squadm.why))

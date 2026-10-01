@@ -46,6 +46,7 @@ class SlotMemory:
         self.intercept = {}       # 경계 칸 -> need 2 상태
         self.press = {}           # 경계 칸 -> 압력 목표
         self.press_turn = -99
+        self.support_last = {}    # 지원 칸 -> 압력이 마지막으로 있던 턴
 
 
 # ---------------------------------------------------------------------- 경주 수비 (11.2)
@@ -274,14 +275,20 @@ def trade_slots(ctx, out):
 
 # ---------------------------------------------------------------------- 지원 (11.9)
 def support_slots(ctx, out):
+    """지원 칸 need = min(P-SUPPORT_MAX, 붙은 경계 칸 E1 최댓값) (11.9).
+    E1이 0으로 떨어져도 P-SUPPORT_HOLD 턴 동안은 need 1로 유지해 병력이 오락가락하지 않게 한다."""
     mp, th, terr = ctx.mp, ctx.threat, ctx.terr
+    sm = ctx.smem
     for s in terr.S:
         m = 0
         for v in mp.nbrs[s]:
             if v in terr.Fset and th.E1[v] > m:
                 m = th.E1[v]
         if m > 0:
+            sm.support_last[s] = ctx.turn
             out.append(Slot(('support', s), s, min(P.SUPPORT_MAX, m), P6, value=float(m)))
+        elif ctx.turn - sm.support_last.get(s, -99) <= P.SUPPORT_HOLD:
+            out.append(Slot(('support', s), s, 1, P6, value=0.5))
 
 
 # ---------------------------------------------------------------------- 오프닝 호위 (16.5)

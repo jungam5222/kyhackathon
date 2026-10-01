@@ -33,6 +33,11 @@ class SquadManager:
         self.next_id = 1
         self.done = 0
         self.aborted = 0
+        self.why = {}               # 중단 사유별 횟수 (진단용)
+
+    def _abort(self, why):
+        self.aborted += 1
+        self.why[why] = self.why.get(why, 0) + 1
 
     # ------------------------------------------------------------------ 대상과 가치 (17.1)
     def _targets(self, ctx):
@@ -95,7 +100,7 @@ class SquadManager:
             f = alive.get(sq.fid)
             o = td.owner[sq.bi]
             if f is None:
-                self.aborted += 1
+                self._abort('flag_dead')
                 continue
             if o == 0:
                 self.done += 1
@@ -113,7 +118,8 @@ class SquadManager:
                 late = sq.state == MOVE and ctx.turn > sq.move_limit
                 if sq.waited > P.SQUAD_WAIT_MAX or sq.unsafe >= P.SQUAD_UNSAFE_TURNS or late:
                     f.squad = None
-                    self.aborted += 1
+                    self._abort('wait' if sq.waited > P.SQUAD_WAIT_MAX else
+                                ('unsafe' if sq.unsafe >= P.SQUAD_UNSAFE_TURNS else 'late'))
                     continue
             elif sq.state == ENTER:
                 b = mp.blds[sq.bi]
@@ -123,7 +129,7 @@ class SquadManager:
                 need_t = mp.dist[f.c][b.c] + (1 if o == -1 else 2)
                 if ctx.turn + need_t - 1 > P.LAST_TURN:
                     f.squad = None
-                    self.aborted += 1
+                    self._abort('endgame')
                     continue
             keep.append(sq)
         self.squads = keep

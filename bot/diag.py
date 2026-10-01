@@ -87,7 +87,7 @@ class Metrics:
         if self.f45 is None:
             self.f45 = (lost, kills)
 
-    def line(self, turn, lost, kills, squads):
+    def line(self, turn, lost, kills, squads, why=None):
         def pct(a, b):
             return f"{100.0 * a / b:.0f}" if b else '-'
         f45 = self.f45 if self.f45 is not None else (lost, kills)
@@ -97,5 +97,6 @@ class Metrics:
                 f"fexp{pct(self.f_exposed, self.f_turns)}% f45:{f45[0]}/{f45[1]} "
                 f"fall:{lost}/{kills} of{self.overflow} rj{self.rej} "
                 f"tl{self.tele_turns}/{self.tele_units} eng{self.eng_turns} hall{self.hall_turns} "
-                f"dP{self.dp_sum / max(1, self.turns):+.2f} sq{squads[0]}/{squads[1]} "
+                f"dP{self.dp_sum / max(1, self.turns):+.2f} sq{squads[0]}/{squads[1]}"
+                f"{'(' + ','.join(f'{k}{v}' for k, v in sorted((why or {}).items())) + ')' if why else ''} "
                 f"ms{self.max_ms:.0f}")

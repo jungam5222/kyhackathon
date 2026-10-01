@@ -188,6 +188,15 @@ class Assigner:
             return 0
         return sum(n for eta, n in d.items() if eta <= deadline)
 
+    def rev_cost(self, g, s):
+        """막 p → c로 온 그룹이 슬롯 s로 가려면 p 쪽으로 되돌아가야 하면 비용을 더한다."""
+        p = g.came
+        if p is None or g.c == p:
+            return 0
+        if self.dist[p][s.cell] < self.dist[g.c][s.cell] and self.cost(g.c, s) > 0:
+            return P.REVERSE_COST
+        return 0
+
     def deficit(self, s):
         if s.r == 0:
             return self.cum(s) - self.pt_in_time(s.cell, s.deadline)
@@ -461,6 +470,8 @@ class Assigner:
                     k = min(k, max(0, self.pt_in_time(g.c, 0) - keep))
                     if k <= 0:
                         continue
+            if s.tier > P1c:
+                extra += self.rev_cost(g, s)
             out.append((c + extra, 0 if c == 0 else 1, phi[g.c], g.c, g.seq, k, g))
         pa = self.prod_avail(s)
         if pa > 0:
@@ -564,7 +575,7 @@ class Assigner:
             cands = []
             for g in self.groups:
                 if g.n > 0 and g.slot is None and g.status == 'free' and not g.prod:
-                    cands.append((self.cost(g.c, s), g.c, g.seq, g))
+                    cands.append((self.cost(g.c, s) + self.rev_cost(g, s), g.c, g.seq, g))
             cands.sort(key=lambda t: t[:3])
             for c, _, _, g in cands:
                 if dfc <= 0:
@@ -579,7 +590,8 @@ class Assigner:
         # 남은 자유 인원은 가장 가까운 지원 칸으로 (INV-07 놀림 금지)
         for g in list(self.groups):
             if g.n > 0 and g.slot is None and g.status == 'free' and not g.prod:
-                s = min(sups, key=lambda s: (self.cost(g.c, s), -s.value, s.cell))
+                s = min(sups, key=lambda s: (self.cost(g.c, s) + self.rev_cost(g, s),
+                                             -s.value, s.cell))
                 s.need += g.n
                 self.take(g, g.n, s, 'asg')
         if self.prod_left > 0:
