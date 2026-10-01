@@ -62,7 +62,7 @@ class SquadManager:
                     min(mp.dist[b.c][c] for c in ctx.terr.F) <= P.SQUAD_FWD_HOSP_R:
                 v = P.SQUAD_V_FWD_HOSP
             elif b.kind == 'STATION' and o == 1 and len(eco.stations[1]) == 2:
-                v = P.SQUAD_V_STATION
+                v = P.SQUAD_V_STATION_TELE if ctx.opp.tele_conveyor else P.SQUAD_V_STATION
             if v > 0:
                 out.append((v, b, b.kind in ('ENG', 'HALL')))
         return out
@@ -169,12 +169,16 @@ class SquadManager:
         # 여유 = P0~P2를 채운 뒤 남는 병력 (직전 턴 수요 기준, 17.1)
         surplus = ctx.w_total - ctx.core_need - P.SQUAD_RESERVE - used_k
         # PH1·PH2(라인 완성 전, 45턴 전)에는 경제 직결 분대(공학관·학생회관)만 낸다 (4.1)
-        econ_only = not ctx.finale and not ctx.terr.line_done and ctx.turn < P.PH3_TURN
+        econ_only = (not ctx.finale and not ctx.terr.line_done and ctx.turn < P.PH3_TURN and
+                     not ctx.opp.flag_rush)     # 깃발 몰빵 상대: 초반 병력 우위로 외곽 분대 (19장)
+        all_in = ctx.finale and ctx.eco.n_bld[1] <= P.FIN_ALL_IN
         cands = []
         for v, b, econ in self._targets(ctx):
             if b.i in busy or (econ_only and not econ):
                 continue
             k = max(th.E1[b.c], th.Ed(b.c, 2)) + 1
+            if all_in:                          # 상대 건물이 2개 이하면 전원 투입 (18.2)
+                k = max(k, surplus // max(1, ctx.eco.n_bld[1]))
             if v < P.SQUAD_MIN_VALUE or v < k or k > surplus:
                 continue
             d0 = min(mp.dist[s][b.c] for s in ctx.eco.sites[0])

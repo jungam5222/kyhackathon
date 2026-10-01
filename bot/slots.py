@@ -7,7 +7,8 @@ from mapinfo import INF
 
 TIER_NAMES = ('P0a', 'P0b', 'P0c', 'P0d', 'P1a', 'P1b', 'P1c', 'P2', 'P3', 'P4', 'P5', 'P6')
 (P0a, P0b, P0c, P0d, P1a, P1b, P1c, P2, P3, P4, P5, P6) = range(12)
-TEMP_KINDS = ('hunt', 'guard', 'escort', 'gather', 'press', 'trade', 'squad', 'oesc', 'reent')
+TEMP_KINDS = ('hunt', 'guard', 'escort', 'gather', 'press', 'trade', 'squad', 'oesc', 'reent',
+              'block')
 STRUCT_KINDS = ('screen', 'screenu', 'screen2', 'support')
 
 
@@ -164,6 +165,8 @@ def hunt_slots(ctx, out):
                 for m in rest:
                     p[m] = left / max(1, len(rest))
         V = P.HUNT_V_BASE
+        if ctx.opp.flag_rush:
+            V += P.FLAG_RUSH_HUNT_BONUS
         if f.lurker:
             V += P.HUNT_V_LURK
         if on_ours or any(v in our_b for v in mp.nbrs[f.c]):
@@ -228,7 +231,7 @@ def press_slots(ctx, out):
     if ctx.turn - sm.press_turn >= P.PRESS_PERIOD:
         sm.press_turn = ctx.turn
         for c in terr.F:
-            v = min(th.E1[c], P.PRESS_MAX)
+            v = min(th.E1[c], ctx.opp.press_cap(c))
             old = sm.press.get(c, 0)
             if abs(v - old) >= P.PRESS_HYST or (v == 0) != (old == 0):
                 sm.press[c] = v
@@ -248,6 +251,8 @@ def trade_slots(ctx, out):
     our_b = {b.c for b in mp.blds if td.owner[b.i] == 0}
     cand = []
     seen = set()
+    if ctx.opp.blob is not None:          # 데스볼은 쫓지 않는다 (19장)
+        seen.update(mp.closed[ctx.opp.blob])
     for c in terr.F + terr.S:
         for v in mp.nbrs[c]:
             if v in seen or terr.T[v] or td.W[1][v] == 0:
@@ -295,6 +300,21 @@ def opening_escort_slots(ctx, out):
         out.append(Slot(('oesc', bi), b.c, need, P1b, deadline=dl, value=ctx.bld_value(b)))
 
 
+# ---------------------------------------------------------------------- 생산지 봉쇄 (18.2)
+def block_slots(ctx, out):
+    """마감 중, 상대 즉석 생산 가능 수가 우리 여유보다 작으면 상대 생산지 칸과 이웃 칸
+    전부를 (즉석 생산 수 + 1)로 덮는다 (E-32: 새 유닛은 그 턴 이웃 칸으로 빠져나갈 수 있다)."""
+    if not (ctx.finale and P.BLOCK_SITES):
+        return
+    mp, th = ctx.mp, ctx.threat
+    need = th.spawn_e + 1
+    cells = sorted({c for s in ctx.eco.sites[1] for c in mp.closed[s]})
+    if not cells or need * len(cells) > ctx.w_total - ctx.core_need:
+        return
+    for c in cells:
+        out.append(Slot(('block', c), c, need, P3, value=float(need)))
+
+
 def build_base_slots(ctx):
     out = []
     guard_slots(ctx, out)
@@ -303,5 +323,6 @@ def build_base_slots(ctx):
     screen_slots(ctx, out)
     press_slots(ctx, out)
     trade_slots(ctx, out)
+    block_slots(ctx, out)
     support_slots(ctx, out)
     return out

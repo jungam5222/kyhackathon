@@ -91,6 +91,24 @@ FIN_MAJ_TURNS = 3
 FIN_BREAK_LEAD = -5
 FIN_ALL_IN = 2                # 상대 건물이 이 수 이하이면 전원 투입
 ENDGAME_TURN = 150
+BLOCK_SITES = True            # 18.2 마감 중 상대 생산지 봉쇄
+
+# ---------------------------------------------------------------- 상대 유형 (19장)
+FLAG_RUSH_TURN = 10
+FLAG_RUSH_FLAGS = 7
+FLAG_RUSH_HUNT_BONUS = 5      # 깃발 몰빵 상대: 사냥 가치 가산
+DEATHBALL_MIN_W = 10
+DEATHBALL_SHARE = 0.4
+SIEGE_MIN_W = 15
+SIEGE_MAX_W = 30
+SIEGE_STILL = 2               # 견제 판정: 더미가 같은 칸에 머문 턴
+MARCH_PACK_MIN = 5            # 육로 컨베이어 묶음 크기
+MARCH_PACK_MAX = 8
+MARCH_DECAY = 0.7
+MARCH_TRIGGER = 2.0
+PRESS_MAX_MARCH = 12          # 행군로 경계 칸 압력 상한
+HOARD_R = 30
+SQUAD_V_STATION_TELE = 12     # TELE 컨베이어 상대의 역 분대 가치
 
 # ---------------------------------------------------------------- 사냥 (11.4)
 HUNT_P_BLD = 0.9

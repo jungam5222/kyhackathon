@@ -109,7 +109,8 @@ class Territory:
         self._occupation(td)
         self.adv_log = ''
         self.changed = False
-        if self.line_done or fin:
+        # 마감이어도 라인이 미완성이면 전진 대신 분대로 친다 (18.2)
+        if self.line_done:
             if not fin:
                 self._retreat(ctx, seeds, ess, ess_cells)
             self._advance(ctx, seeds, ess, ess_cells)

@@ -334,6 +334,8 @@ class FlagManager:
         # 영역 안쪽 건물만 기준으로 삼는다 (전진 기지는 경주 수비가 맡는다)
         terr = ctx.terr
         targets = [b for b in targets if terr.T[b.c] and b.c not in terr.Fset]
+        # 잠복 저격 대상 건물 옆에 먼저 세운다 (19장)
+        targets.sort(key=lambda b: 0 if b.i in ctx.opp.lurk_bids else 1)
         anchor = None
         for b in targets:
             if b.i not in used:

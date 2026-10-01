@@ -11,6 +11,7 @@ from modes import Modes
 from opening import OpeningPlan
 from flags import FlagManager
 from squads import SquadManager
+from opponent import OppModel
 from slots import SlotMemory, Slot, build_base_slots, P0d, P1a, P1c, P2
 from assign import Ledger, Assigner, Rec
 import production
@@ -55,6 +56,7 @@ class Bot:
         self.modes = Modes()
         self.flagm = FlagManager(mp, self.opening)
         self.squadm = SquadManager(mp)
+        self.opp = OppModel(mp)
         self.ledger = Ledger()
         self.smem = SlotMemory()
         self.turn = 0
@@ -147,7 +149,9 @@ class Bot:
         ctx.finale = self.modes.finale
         # S5 영역
         ctx.essential = self._essential(td, eco)
+        ctx.opp = self.opp
         self.terr.update(ctx)
+        self.opp.update(ctx, self.flagm)
         # S6 깃발 계획
         nF = self.flagm.spawn_count(ctx)
         new_flags = [self.flagm.new_flag(ctx, mp.base_us) for _ in range(nF)]
@@ -253,7 +257,7 @@ class Bot:
                 f"U{u0},{u1} mv{mv} rv{st['rev']}/{st['rev_bad']} sw{st['swap']} "
                 f"id{st['idle']} or{st['orph']} sp{sum(out.spawned['W'].values())}"
                 f"{'h' if pp.hold else ''} tl{1 if tl else 0} fb{bad} rj{out.rejected} "
-                f"sq{len(self.squadm.squads)} ms{ms:.1f}")
+                f"sq{len(self.squadm.squads)} op{self.opp.tag()} ms{ms:.1f}")
         self.log(line[:P.LOG_LINE_MAX])
         if ctx.last:
             m = self.m
